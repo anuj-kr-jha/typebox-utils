@@ -1,0 +1,12 @@
+# Format code
+npm run fmt:apply
+
+# Stage formatted files
+git add .
+
+# Continue with commit
+
+# This line executes a git commit command
+# It bypasses pre-commit hooks with --no-verify
+# And uses the first command-line argument as the commit message
+# exec git commit --no-verify -m "$1"

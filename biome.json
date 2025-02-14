@@ -1,0 +1,103 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "ignore": ["node_modules/**"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "formatWithErrors": false,
+    "indentWidth": 2,
+    "lineWidth": 130,
+    "lineEnding": "lf",
+    "ignore": []
+  },
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": false,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "all": true,
+        "noExplicitAny": "off",
+        "noDoubleEquals": "off"
+      },
+      "correctness": {
+        "all": true,
+        "noUnusedImports": "off",
+        "noUnusedVariables": "off"
+      },
+      "security": {
+        "all": true
+      },
+      "performance": {
+        "all": true
+      },
+      "style": {
+        "all": true,
+        "useBlockStatements": "off",
+        "noDefaultExport": "off",
+        "noUnusedTemplateLiteral": "off",
+        "noParameterAssign": "off",
+        "useNamingConvention": "off",
+        "useSingleVarDeclarator": "off",
+        "noNonNullAssertion": "off",
+        "useFilenamingConvention": {
+          "level": "warn",
+          "options": {
+            "strictCase": true,
+            "requireAscii": true,
+            "filenameCases": ["camelCase", "export"]
+          }
+        }
+      },
+      "complexity": {
+        "all": true,
+        "useSimplifiedLogicExpression": "off",
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 30
+          }
+        }
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "enabled": true,
+      "quoteStyle": "single",
+      "indentWidth": 2,
+      "indentStyle": "space",
+      "trailingCommas": "none",
+      "lineWidth": 130,
+      "lineEnding": "lf",
+      "arrowParentheses": "asNeeded",
+      "semicolons": "always",
+      "bracketSameLine": true,
+      "bracketSpacing": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space",
+      "indentWidth": 2,
+      "lineEnding": "lf",
+      "trailingCommas": "none",
+      "lineWidth": 130
+    },
+    "parser": {
+      "allowComments": true,
+      "allowTrailingCommas": true
+    }
+  }
+}
