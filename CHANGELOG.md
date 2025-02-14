@@ -15,3 +15,9 @@
 ### Modified
 
 - removed `tsx` from dependencies
+
+## [0.1.2] - 2025-02-15
+
+### Modified
+
+- added `@sinclair/typebox` and `mongodb` to peer dependencies

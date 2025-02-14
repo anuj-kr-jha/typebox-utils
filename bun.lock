@@ -3,13 +3,11 @@
   "workspaces": {
     "": {
       "name": "typebox-utils",
-      "dependencies": {
-        "@sinclair/typebox": "^0.34.11",
-        "mongodb": "^6.13.0",
-      },
       "devDependencies": {
         "@biomejs/biome": "1.9.4",
+        "@sinclair/typebox": "^0.34.11",
         "husky": "^9.1.7",
+        "mongodb": "^6.13.0",
         "tsx": "^4.19.2",
         "typescript": "^5.7.2",
       },

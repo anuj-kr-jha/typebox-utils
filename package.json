@@ -4,15 +4,13 @@
   "type": "module",
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@sinclair/typebox": "^0.34.11",
+    "mongodb": "^6.13.0",
     "husky": "^9.1.7",
     "typescript": "^5.7.2",
     "tsx": "^4.19.2"
   },
   "peerDependencies": {
-    "@sinclair/typebox": "^0.34.11",
-    "mongodb": "^6.13.0"
-  },
-  "dependencies": {
     "@sinclair/typebox": "^0.34.11",
     "mongodb": "^6.13.0"
   },
@@ -25,7 +23,7 @@
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json"
   },
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TypeBox utilities with MongoDB ObjectId support and common validation types",
   "author": "Anuj Kumar Jha",
   "license": "MIT",
