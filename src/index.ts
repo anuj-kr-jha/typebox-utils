@@ -6,7 +6,8 @@ import { FormatRegistry, Type, type Static, type TSchema } from '@sinclair/typeb
 import { TParseOperation, Value } from '@sinclair/typebox/value';
 import { ObjectId } from 'mongodb';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
-
+import { setDifference } from './polyfill';
+import { randomUUID } from 'node:crypto';
 /**
  * Register custom formats for validation
  */
@@ -22,7 +23,7 @@ FormatRegistry.Set('uuid', (v: string) =>
  */
 const Utils = {
   /**
-   * Unix timestamp type (milliseconds since epoch)
+   * Unix timestamp type (milliseconds since
    * @param {Object} config - Configuration object for the Timestamp type
    * @param {number} [config.default] - Optional default value for the timestamp
    * @param {number} [config.minimum] - Optional minimum value (defaults to 0)
@@ -32,9 +33,9 @@ const Utils = {
    */
   Timestamp: (config?: { default?: number; minimum?: number; maximum?: number; random?: boolean }) =>
     Type.Number({
-      minimum: config?.minimum ?? 0,
+      minimum: config?.minimum || 0,
       maximum: config?.maximum,
-      default: config?.default ?? (config?.random ? () => Date.now() : undefined),
+      default: config?.default || (config?.random ? () => Date.now() : undefined),
       description: 'Unix timestamp (milliseconds since epoch)'
     }),
 
@@ -54,7 +55,7 @@ const Utils = {
     return Type.String({
       pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
       description: 'UUID v4 format',
-      default: config?.default ?? (config?.random ? () => crypto.randomUUID() : undefined)
+      default: config?.default || (config?.random ? () => randomUUID() : undefined)
     });
   },
 
@@ -95,7 +96,7 @@ const Utils = {
       format: 'mobile',
       description: '10-digit mobile number',
       default:
-        config?.default ??
+        config?.default ||
         (config?.random ? () => Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join('') : undefined)
     });
   },
@@ -121,7 +122,7 @@ const Utils = {
     return Type.String({
       format: 'objectid',
       description: 'MongoDB ObjectId',
-      default: () => config?.default ?? (config?.random ? new ObjectId().toString() : undefined)
+      default: () => config?.default || (config?.random ? new ObjectId().toString() : undefined)
     }) as unknown as TSchema & { static: ObjectId };
   }
 } as const;
@@ -267,7 +268,8 @@ const validate = <T>(
 
   const _operations: Set<TParseOperation> = new Set(['Clone', 'Clean', 'Default', 'Convert']);
   const _skipOperations: Set<TParseOperation> = new Set(skipOperations);
-  const operations = Array.from(_operations.difference(_skipOperations));
+  // const operations = Array.from(_operations.difference(_skipOperations));
+  const operations = Array.from(setDifference(_operations, _skipOperations));
   // console.log({ _operations, _skipOperations, operations });
 
   const opts: any[] = ['Clone', ...Array.from(new Set(operations))];
@@ -279,7 +281,7 @@ const validate = <T>(
     const E = schema._compiled.Errors(VP).First();
     const path = E?.path ? ` at '${E.path}'` : '';
     const errorValue = E?.value ? ` (got ${JSON.stringify(E.value)})` : '';
-    return [`${E?.message ?? 'Invalid value'}${path}${errorValue}`, value as T];
+    return [`${E?.message || 'Invalid value'}${path}${errorValue}`, value as T];
   }
 
   const VC = isConvertObjectIds ? convertObjectIds(VP as any, schema) : VP;
