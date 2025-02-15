@@ -20,28 +20,111 @@ FormatRegistry.Set('uuid', (v: string) =>
 /**
  * Common reusable schema types
  */
-const CommonTypes = {
-  /** Email format: example@domain.com */
-  Email: Type.String({ format: 'email' }),
-  /** 10-digit mobile number */
-  Mobile: Type.String({ format: 'mobile' }),
-  /** Unix timestamp (milliseconds since epoch) */
-  Timestamp: Type.Number({ minimum: 0 }),
-  /** UUID v4 format */
-  UUID: Type.String({ pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' })
-} as const;
+const Utils = {
+  /**
+   * Unix timestamp type (milliseconds since epoch)
+   * @param {Object} config - Configuration object for the Timestamp type
+   * @param {number} [config.default] - Optional default value for the timestamp
+   * @param {number} [config.minimum] - Optional minimum value (defaults to 0)
+   * @param {number} [config.maximum] - Optional maximum value
+   * @param {boolean} [config.random] - Optional flag to generate current timestamp
+   * @returns {import('@sinclair/typebox').TNumber} A TypeBox schema for Unix timestamp
+   */
+  Timestamp: (config?: { default?: number; minimum?: number; maximum?: number; random?: boolean }) =>
+    Type.Number({
+      minimum: config?.minimum ?? 0,
+      maximum: config?.maximum,
+      default: config?.default ?? (config?.random ? () => Date.now() : undefined),
+      description: 'Unix timestamp (milliseconds since epoch)'
+    }),
 
-/**
- * Creates a MongoDB ObjectId type schema
- * @param autoGenerate If true, generates a new ObjectId when value is '666666666666666666666666'
- * @returns Schema for ObjectId validation and conversion
- */
-const ObjectIdType = (autoGenerate?: boolean) =>
-  Type.String({
-    format: 'objectid',
-    description: 'MongoDB ObjectId',
-    default: autoGenerate ? '666666666666666666666666' : undefined
-  }) as unknown as TSchema & { static: ObjectId };
+  /**
+   * UUID v4 format type
+   * @param {Object} config - Configuration object for the UUID type
+   * @param {string} [config.default] - Optional default UUID string
+   * @param {boolean} [config.random] - Optional flag to generate a random UUID
+   * @returns {import('@sinclair/typebox').TString} A TypeBox schema for UUID v4
+   */
+  UUID: (config?: { default?: string; random?: boolean }) => {
+    if (config?.default) {
+      if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(config.default)) {
+        throw new Error('Invalid default value for UUID ' + config.default);
+      }
+    }
+    return Type.String({
+      pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+      description: 'UUID v4 format',
+      default: config?.default ?? (config?.random ? () => crypto.randomUUID() : undefined)
+    });
+  },
+
+  /**
+   * Email format type
+   * @param {Object} config - Configuration object for the Email type
+   * @param {string} [config.default] - Optional default email address
+   * @param {boolean} [config.random] - Optional flag to generate a random email
+   * @returns {import('@sinclair/typebox').TString} A TypeBox schema for email format
+   */
+  Email: (config?: { default?: string; random?: boolean }) => {
+    if (config?.default) {
+      if (!/^[^@]+@[^@]+\.[^@]+$/.test(config.default)) {
+        throw new Error('Invalid default value for Email ' + config.default);
+      }
+    }
+    return Type.String({
+      format: 'email',
+      description: 'Email format: example@domain.com',
+      default: config?.random ? () => `user_${Math.random().toString(36).slice(2)}@example.com` : config?.default
+    });
+  },
+
+  /**
+   * Mobile number format type (10 digits)
+   * @param {Object} config - Configuration object for the Mobile type
+   * @param {string} [config.default] - Optional default mobile number
+   * @param {boolean} [config.random] - Optional flag to generate a random mobile number
+   * @returns {import('@sinclair/typebox').TString} A TypeBox schema for mobile number format
+   */
+  Mobile: (config?: { default?: string; random?: boolean }) => {
+    if (config?.default) {
+      if (!/^[0-9]{10}$/.test(config.default)) {
+        throw new Error('Invalid default value for Mobile ' + config.default);
+      }
+    }
+    return Type.String({
+      format: 'mobile',
+      description: '10-digit mobile number',
+      default:
+        config?.default ??
+        (config?.random ? () => Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join('') : undefined)
+    });
+  },
+
+  /**
+   * ObjectId type
+   * @param {Object} config - Configuration object for the ObjectId type
+   * @param {string} [config.default] - Optional default value for the ObjectId type
+   * @param {boolean} [config.random] - Optional flag to generate a random ObjectId
+   * @returns {import('@sinclair/typebox').TString & { static: ObjectId }} A TypeBox schema for MongoDB ObjectId
+   */
+  ObjectId: (config?: { default?: string; random?: boolean }) => {
+    if (config?.default) {
+      if (ObjectId.isValid(config.default)) {
+        return Type.String({
+          format: 'objectid',
+          description: 'MongoDB ObjectId',
+          default: config.default
+        }) as unknown as TSchema & { static: ObjectId };
+      }
+      throw new Error('Invalid default value for ObjectIdType ' + config.default);
+    }
+    return Type.String({
+      format: 'objectid',
+      description: 'MongoDB ObjectId',
+      default: () => config?.default ?? (config?.random ? new ObjectId().toString() : undefined)
+    }) as unknown as TSchema & { static: ObjectId };
+  }
+} as const;
 
 /**
  * Gets all paths in a schema that should be converted to ObjectId
@@ -82,21 +165,12 @@ const getObjectIdPaths = (schema: TSchema, prefix = ''): string[] => {
  */
 const convertObjectIds = <T extends object>(obj: T, schema: TSchema): T => {
   const paths = getObjectIdPaths(schema);
-
+  // console.log({ paths });
   // Handle direct ObjectId case
   if (paths.length === 1 && paths[0] === '') {
-    if (obj === undefined && schema.default) {
-      return new ObjectId(schema.default) as any;
-    }
-    if (typeof obj === 'string' && ObjectId.isValid(obj)) {
-      if (obj === '666666666666666666666666') {
-        return new ObjectId() as any;
-      }
-      return new ObjectId(obj) as any;
-    }
-    if (obj instanceof ObjectId) {
-      return obj as any;
-    }
+    if (obj === undefined && schema.default) return new ObjectId(schema.default) as any;
+    if (typeof obj === 'string' && ObjectId.isValid(obj)) return new ObjectId(obj) as any;
+    if (obj instanceof ObjectId) return obj as any;
   }
 
   const setValue = (target: any, segments: string[], value: any) => {
@@ -111,11 +185,7 @@ const convertObjectIds = <T extends object>(obj: T, schema: TSchema): T => {
       }
     } else if (rest.length === 0) {
       if (typeof target[first] === 'string' && ObjectId.isValid(target[first])) {
-        if (target[first] === '666666666666666666666666') {
-          target[first] = new ObjectId();
-        } else {
-          target[first] = new ObjectId(target[first]);
-        }
+        target[first] = new ObjectId(target[first]);
       }
     } else {
       if (target[first]) {
@@ -167,8 +237,15 @@ const createCompiledSchema = <T extends TSchema>(schema: T): T & { _compiled: Re
  * Validates a value against a schema
  * @param value The value to validate
  * @param schema The schema to validate against (preferably pre-compiled)
- * @param operations Array of operations to perform during validation
+ * @param skipOperations Array of operations to skip during validation. default performed operations: ['Clean', 'Default', 'Convert', 'ConvertOID']
  * @returns Tuple of [error message or null, validated value]
+ * @note
+ * - When nothing is specified then it will perform all operations
+ * - When `ConvertOID` is specified then it will convert the ObjectId string to ObjectId instance
+ * - When `Convert` is specified then it will convert the ObjectId string to ObjectId instance
+ * - When `Default` is specified then it will set the default value
+ * - When `Clean` is specified then it will remove the extra spaces and trim the string
+ * - Validate will never mutate the original value as it creates a clone of the value 1st
  * @example
  * const [error, value] = validate(data, schema);
  * if (error) {
@@ -180,15 +257,22 @@ const createCompiledSchema = <T extends TSchema>(schema: T): T & { _compiled: Re
 const validate = <T>(
   value: any,
   schema: TSchema & { _compiled?: ReturnType<typeof TypeCompiler.Compile> },
-  operations: TParseOperation[] = ['Clone', 'Clean', 'Default', 'Convert']
+  skipOperations: ('Clean' | 'Default' | 'Convert' | 'ConvertOID')[] = []
 ): [string | null, T] => {
   // If schema isn't pre-compiled, compile it on the fly but warn about it
   if (!schema._compiled) {
     console.warn('Schema not pre-compiled. Use createSchema for better performance.');
-    return validate(value, createCompiledSchema(schema), operations);
+    return validate(value, createCompiledSchema(schema), skipOperations);
   }
 
-  const VP = Value.Parse(operations, schema, value) as Static<typeof schema>;
+  const _operations: Set<TParseOperation> = new Set(['Clone', 'Clean', 'Default', 'Convert']);
+  const _skipOperations: Set<TParseOperation> = new Set(skipOperations);
+  const operations = Array.from(_operations.difference(_skipOperations));
+  // console.log({ _operations, _skipOperations, operations });
+
+  const opts: any[] = ['Clone', ...Array.from(new Set(operations))];
+  const isConvertObjectIds = !skipOperations.some(t => t === 'ConvertOID');
+  const VP = Value.Parse(opts, schema, value) as Static<typeof schema>;
   const R = schema._compiled.Check(VP);
 
   if (!R) {
@@ -198,7 +282,7 @@ const validate = <T>(
     return [`${E?.message ?? 'Invalid value'}${path}${errorValue}`, value as T];
   }
 
-  const VC = convertObjectIds(VP as any, schema);
+  const VC = isConvertObjectIds ? convertObjectIds(VP as any, schema) : VP;
   return [null, VC as T];
 };
 
@@ -224,4 +308,4 @@ const validateArray = <T>(
   return values.map(value => validate<T>(value, schema));
 };
 
-export { ObjectIdType, Static, Type, validate, validateArray, createCompiledSchema as createSchema, CommonTypes };
+export { Static, Type, validate, validateArray, createCompiledSchema as createSchema, Utils };

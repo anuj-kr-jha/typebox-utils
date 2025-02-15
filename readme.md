@@ -1,4 +1,4 @@
-# TypeBox Validation Utilities
+# TypeBox Utils
 
 A robust validation library built on top of [@sinclair/typebox](https://github.com/sinclairzx81/typebox) that provides enhanced ObjectId support, common schema types, and simplified validation workflows.
 
@@ -16,205 +16,195 @@ A robust validation library built on top of [@sinclair/typebox](https://github.c
 ## Installation
 
 ```bash
-npm install typebox-utils
-# or
-yarn add typebox-utils
+npm install typebox-utils @sinclair/typebox mongodb
 ```
+Note: This package is a peer dependency of `@sinclair/typebox` and `mongodb`. so you need to install them separately.
 
 ## Usage
 
-### Basic Validation
+### ESM Example
+```javascript
+import { Type, Utils, createSchema, validate } from 'typebox-utils';
 
-```typescript
-import { Type, validate, createSchema } from 'typebox-utils';
+// Schema creation
+const userSchema = createSchema(
+  Type.Object({
+    _id: Utils.ObjectId(),
+    email: Utils.Email({ random: true }),
+    createdAt: Utils.Timestamp({ random: true }),
+    contacts: Type.Array(Utils.ObjectId())
+  })
+);
 
-// Create a schema with type inference
-const userSchema = createSchema(Type.Object({
-  name: Type.String(),
-  age: Type.Number(),
-  email: Type.String({ format: 'email' })
-}));
-
-// Type-safe validation
-type UserSchema = typeof userSchema;
-const data = {
-  name: 'John Doe',
-  age: 30,
-  email: 'john@example.com'
-};
-
-const [error, validatedData] = validate<Static<UserSchema>>(data, userSchema);
-if (error) {
-  console.error(error);
-} else {
-  // validatedData is fully typed
-  console.log(validatedData.name); // TypeScript knows this is a string
-}
-```
-
-### MongoDB ObjectId Support
-
-```typescript
-import { Type, ObjectIdType, validate, createSchema } from 'typebox-validation';
-
-const userSchema = createSchema(Type.Object({
-  _id: ObjectIdType(),
-  name: Type.String()
-}));
-
-type UserDocument = Static<typeof userSchema>;
-
-// Validates and converts string ObjectIds to MongoDB ObjectId instances
-const [error, user] = validate<UserDocument>({
-  _id: '507f1f77bcf86cd799439011',
-  name: 'John'
+// Data validation
+const [error, validated] = validate({
+  email: 'test@example.com',
+  contacts: ['507f1f77bcf86cd799439011']
 }, userSchema);
+
+if (error) throw new Error(error);
+console.log(validated);
 ```
 
-### Common Types
+### CommonJS Example
+```javascript
+const { Type, Utils, createSchema, validate } = require('typebox-utils');
 
-```typescript
-import { Type, CommonTypes, createSchema } from 'typebox-validation';
+// Schema creation
+const productSchema = createSchema(
+  Type.Object({
+    sku: Utils.UUID({ random: true }),
+    price: Type.Number({ minimum: 0 }),
+    created: Utils.Timestamp()
+  })
+);
 
-const userSchema = createSchema(Type.Object({
-  email: CommonTypes.Email,
-  mobile: CommonTypes.Mobile,
-  createdAt: CommonTypes.Timestamp,
-  sessionId: CommonTypes.UUID
-}));
+// Data validation
+const [err, result] = validate({
+  price: 29.99,
+  created: Date.now()
+}, productSchema);
 
-type User = Static<typeof userSchema>;
-```
-
-### Array Validation
-
-```typescript
-import { validateArray, Type, createSchema } from 'typebox-validation';
-
-const itemSchema = createSchema(Type.Object({
-  name: Type.String(),
-  quantity: Type.Number()
-}));
-
-type Item = Static<typeof itemSchema>;
-
-const items = [
-  { name: 'Item 1', quantity: 5 },
-  { name: 'Item 2', quantity: 10 }
-];
-
-const results = validateArray<Item>(items, itemSchema);
-results.forEach(([error, item]) => {
-  if (error) {
-    console.error(error);
-  } else {
-    // item is fully typed
-    console.log(item.name, item.quantity);
-  }
-});
-```
-
-### Auto-generating ObjectIds
-
-```typescript
-import { ObjectIdType, validate, createSchema, Type } from 'typebox-utils';
-
-const schema = createSchema(Type.Object({
-  // When autoGenerate is true, a new ObjectId will be generated if none is provided
-  _id: ObjectIdType(true),
-  name: Type.String()
-}));
-
-type Doc = Static<typeof schema>;
-
-// These are equivalent when autoGenerate is true:
-const [error1, doc1] = validate<Doc>({
-  name: 'Test'
-}, schema); // _id will be auto-generated
-
-const [error2, doc2] = validate<Doc>({
-  _id: '666666666666666666666666', // Special placeholder value
-  name: 'Test'
-}, schema); // _id will be auto-generated
-
-// Providing a valid ObjectId will use that instead of generating
-const [error3, doc3] = validate<Doc>({
-  _id: '507f1f77bcf86cd799439011',
-  name: 'Test'
-}, schema); // Uses provided _id
-```
-
-## Module Support
-
-The package supports both ESM and CommonJS:
-
-```typescript
-// ESM
-import { validate, Type } from 'typebox-validation';
-
-// CommonJS
-const { validate, Type } = require('typebox-validation');
+if (err) console.error(err);
+else console.log(result);
 ```
 
 ## API Reference
 
-### Main Exports
+### `validate(value, schema, skipOperations?)`
+Validates data against a TypeBox schema with automatic type conversion.
 
-- `Type`: TypeBox type definitions
-- `Static`: TypeBox static type helper
-- `validate<T>(value, schema, operations?)`: Validates a single value against a schema
-- `validateArray<T>(values, schema)`: Validates an array of values against a schema
-- `createSchema(schema)`: Creates a pre-compiled schema for better performance
-- `ObjectIdType(autoGenerate?)`: Creates a MongoDB ObjectId type schema. When `autoGenerate` is true, a new ObjectId will be generated if the field is not provided or if it equals the special value '666666666666666666666666'
-- `CommonTypes`: Common reusable schema types
+**Parameters:**
+- `value`: Data to validate
+- `schema`: Compiled TypeBox schema (use `createSchema`)
+- `skipOperations`: Optional array of operations to skip:
+  - `Clean`: Responsible for removing excess properties from a value
+  - `Default`: Responsible for generating missing properties on a value using default schema annotations if available
+  - `Convert`: Responsible for converting a value into its target type if a reasonable conversion is possible
+  - `ConvertOID`: Responsible for converting ObjectId strings to ObjectId instances
 
-### CommonTypes
+**Returns:** `[error: string | null, validatedData: T]`
 
-```typescript
-const CommonTypes = {
-  Email: Type.String({ format: 'email' }),
-  Mobile: Type.String({ format: 'mobile' }),
-  Timestamp: Type.Number({ minimum: 0 }),
-  UUID: Type.String({ format: 'uuid' })
-};
+**Example:**
+```javascript
+const [error, data] = validate(rawInput, schema, ['Clean']);
 ```
+
+---
+
+### `validateArray(values, schema)`
+Validates an array of values against a schema.
+
+**Parameters:**
+- `values`: Array of data to validate
+- `schema`: Compiled TypeBox schema
+
+**Returns:** Array of `[error, validatedData]` tuples
+
+---
+
+### `createSchema(schema)`
+Pre-compiles schemas for better validation performance.
+
+**Parameters:**
+- `schema`: TypeBox schema object
+
+**Returns:** Compiled schema with type information
+
+---
+
+## Utility Types
+
+### `Utils.Timestamp(config?)`
+Unix timestamp (milliseconds since epoch)
+**Options:**
+- `default`: Default timestamp value
+- `minimum`: Minimum allowed value (default: 0)
+- `maximum`: Maximum allowed value
+- `random`: Generate current timestamp
+
+---
+
+### `Utils.UUID(config?)`
+UUID v4 format validation
+**Options:**
+- `default`: Default UUID string
+- `random`: Generate random UUID
+
+---
+
+### `Utils.Email(config?)`
+Email format validation
+**Options:**
+- `default`: Default email address
+- `random`: Generate random email
+
+---
+
+### `Utils.Mobile(config?)`
+10-digit mobile number validation
+**Options:**
+- `default`: Default mobile number
+- `random`: Generate random number
+
+---
+
+### `Utils.ObjectId(config?)`
+MongoDB ObjectId validation/transformation
+**Options:**
+- `default`: Default ObjectId string
+- `random`: Generate new ObjectId
+
+## Custom Formats
+
+Pre-registered validation formats:
+- `objectid`: MongoDB ObjectId validation
+- `email`: Simple email format
+- `mobile`: 10-digit number
+- `uuid`: UUID v4 format
+
+See [TypeBox Formats](https://github.com/sinclairzx81/typebox#formats) for more information.
 
 ## Best Practices
 
-1. Always use type inference with `Static<typeof schema>`:
-   ```typescript
-   const schema = createSchema(Type.Object({ ... }));
-   type MyType = Static<typeof schema>;
-   const [error, data] = validate<MyType>(input, schema);
-   ```
+1. **Pre-compile Schemas:**
+```javascript
+// Recommended
+const compiledSchema = createSchema(Type.Object({ ... }));
+const [error] = validate(data, compiledSchema);
 
-2. Pre-compile schemas for better performance:
-   ```typescript
-   const schema = createSchema(Type.Object({ ... }));
-   ```
+// Not recommended
+const [error] = validate(data, Type.Object({ ... }));
+```
 
-3. Use CommonTypes for standard fields:
-   ```typescript
-   const schema = createSchema(Type.Object({
-     email: CommonTypes.Email,
-     created: CommonTypes.Timestamp
-   }));
-   ```
+2. **Handle ObjectId Conversion:**
+```javascript
+// Returns ObjectId instances for string values
+const [error, data] = validate({
+  _id: '507f1f77bcf86cd799439011'
+}, schema);
 
-## Requirements
+console.log(data._id instanceof ObjectId); // true
+```
 
-- Node.js >= 14.0.0
-- TypeScript >= 4.5.0 (for type support)
-- MongoDB >= 6.0.0 (for ObjectId support)
+3. **Use Random Defaults:**
+```javascript
+const schema = createSchema(
+  Type.Object({
+    sessionId: Utils.UUID({ random: true }),
+    createdAt: Utils.Timestamp({ random: true })
+  })
+);
+```
 
-## Dependencies
+## Peer Dependencies
 
-- [@sinclair/typebox](https://www.npmjs.com/package/@sinclair/typebox)
-- [mongodb](https://www.npmjs.com/package/mongodb)
+- [`@sinclair/typebox`](https://www.npmjs.com/package/@sinclair/typebox): Core validation library
+- [`mongodb`](https://www.npmjs.com/package/mongodb): MongoDB driver for ObjectId support
 
 ## License
 
-MIT
+MIT © [Anuj Kumar Jha](https://github.com/anuj-kr-jha)
 
 ## Contributing
 

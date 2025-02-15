@@ -1,16 +1,14 @@
-import { ObjectIdType, Static, Type, validate, createSchema } from './index';
+import { validateArray } from 'typebox-utils';
+import { Utils, Static, Type, validate, createSchema } from './index';
 
 const schema = createSchema(
   Type.Object({
-    _id: Type.Optional(ObjectIdType(true))
+    _id: Type.Optional(Utils.ObjectId({ random: true })),
+    name: Type.String({ default: 'John Doe' }),
+    email: Utils.UUID({ random: true })
   })
 );
 
 type T = Static<typeof schema>;
 
-const testData = { _id: 1 } as unknown as T;
-
-const results = validate<T>(testData, schema);
-
-// Log results
-console.log('results:', results);
+console.log(validateArray<T>([{}, {}], schema));
