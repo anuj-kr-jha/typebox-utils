@@ -2,7 +2,7 @@
  * @package
  */
 
-import { FormatRegistry, Type, type Static, type TSchema } from '@sinclair/typebox';
+import { FormatRegistry, Type, type Static, type TSchema, type TObject } from '@sinclair/typebox';
 import { TParseOperation, Value } from '@sinclair/typebox/value';
 import { ObjectId } from 'mongodb';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
@@ -310,4 +310,5 @@ const validateArray = <T>(
   return values.map(value => validate<T>(value, schema));
 };
 
-export { Static, Type, validate, validateArray, createCompiledSchema as createSchema, Utils };
+type TObjectId = TSchema & { static: ObjectId };
+export { Static, Type, validate, validateArray, createCompiledSchema as createSchema, Utils, TObjectId, TObject };

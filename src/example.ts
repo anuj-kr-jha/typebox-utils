@@ -1,14 +1,22 @@
-import { validateArray } from 'typebox-utils';
-import { Utils, Static, Type, validate, createSchema } from './index';
+import { Utils, Static, Type, validate, createSchema, TObjectId } from './index';
 
-const schema = createSchema(
+const UserSchema = createSchema(
   Type.Object({
-    _id: Type.Optional(Utils.ObjectId({ random: true })),
-    name: Type.String({ default: 'John Doe' }),
-    email: Utils.UUID({ random: true })
+    _id: Type.Optional(Utils.ObjectId()) as TObjectId,
+    name: Type.String(),
+    age: Type.Number(),
+    email: Utils.Email({ random: true }),
+    createdAt: Type.Optional(Type.Date({ default: () => new Date() })),
+    updatedAt: Type.Optional(Type.Date({ default: () => new Date() }))
   })
 );
+type User = Static<typeof UserSchema>;
 
-type T = Static<typeof schema>;
+const user = {
+  name: 'John Doe',
+  age: 30
+  // createdAt: new Date()
+};
 
-console.log(validateArray<T>([{}, {}], schema));
+const res = validate<User>(user, UserSchema);
+console.log(res);
