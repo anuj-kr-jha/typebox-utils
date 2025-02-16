@@ -162,13 +162,12 @@ const getObjectIdPaths = (schema: TSchema, prefix = ''): string[] => {
  * Converts string ObjectIds to MongoDB ObjectId instances
  * @param obj Object to convert
  * @param schema Schema defining ObjectId fields
+ * @param oidPaths Array of paths containing ObjectId fields
  * @returns Converted object with ObjectId instances
  */
-const convertObjectIds = <T extends object>(obj: T, schema: TSchema): T => {
-  const paths = getObjectIdPaths(schema);
-  // console.log({ paths });
+const convertStringsToObjectIds = <T extends object>(obj: T, schema: TSchema, oidPaths: string[]): T => {
   // Handle direct ObjectId case
-  if (paths.length === 1 && paths[0] === '') {
+  if (oidPaths.length === 1 && oidPaths[0] === '') {
     if (obj === undefined && schema.default) return new ObjectId(schema.default) as any;
     if (typeof obj === 'string' && ObjectId.isValid(obj)) return new ObjectId(obj) as any;
     if (obj instanceof ObjectId) return obj as any;
@@ -196,7 +195,52 @@ const convertObjectIds = <T extends object>(obj: T, schema: TSchema): T => {
   };
 
   // Handle nested object cases
-  for (const path of paths) {
+  for (const path of oidPaths) {
+    if (path !== '') {
+      setValue(obj, path.split('.'), null);
+    }
+  }
+
+  return obj;
+};
+
+/**
+ * Converts MongoDB ObjectId instances to strings
+ * @param obj Object to convert
+ * @param schema Schema defining ObjectId fields
+ * @param oidPaths Array of paths containing ObjectId fields
+ * @returns Converted object with ObjectId instances converted to strings
+ */
+const convertObjectIdToStrings = <T extends object>(obj: T, schema: TSchema, oidPaths: string[]): T => {
+  // Handle direct ObjectId case
+  if (oidPaths.length === 1 && oidPaths[0] === '') {
+    if (obj instanceof ObjectId) return obj.toString() as any;
+    return obj as any;
+  }
+
+  const setValue = (target: any, segments: string[], value: any) => {
+    if (segments.length === 0) return;
+    const [first, ...rest] = segments;
+
+    if (first === '*') {
+      if (Array.isArray(target)) {
+        target.forEach(item => setValue(item, rest, value));
+      } else if (Array.isArray(target?.items)) {
+        target.items.forEach((item: any) => setValue(item, rest, value));
+      }
+    } else if (rest.length === 0) {
+      if (target[first] instanceof ObjectId) {
+        target[first] = target[first].toString();
+      }
+    } else {
+      if (target[first]) {
+        setValue(target[first], rest, value);
+      }
+    }
+  };
+
+  // Handle nested object cases
+  for (const path of oidPaths) {
     if (path !== '') {
       setValue(obj, path.split('.'), null);
     }
@@ -238,11 +282,11 @@ const createCompiledSchema = <T extends TSchema>(schema: T): T & { _compiled: Re
  * Validates a value against a schema
  * @param value The value to validate
  * @param schema The schema to validate against (preferably pre-compiled)
+ * @param containsObjectId Whether the schema contains ObjectId fields
  * @param skipOperations Array of operations to skip during validation. default performed operations: ['Clean', 'Default', 'Convert', 'ConvertOID']
  * @returns Tuple of [error message or null, validated value]
  * @note
  * - When nothing is specified then it will perform all operations
- * - When `ConvertOID` is specified then it will convert the ObjectId string to ObjectId instance
  * - When `Convert` is specified then it will convert the ObjectId string to ObjectId instance
  * - When `Default` is specified then it will set the default value
  * - When `Clean` is specified then it will remove the extra spaces and trim the string
@@ -258,12 +302,13 @@ const createCompiledSchema = <T extends TSchema>(schema: T): T & { _compiled: Re
 const validate = <T>(
   value: any,
   schema: TSchema & { _compiled?: ReturnType<typeof TypeCompiler.Compile> },
-  skipOperations: ('Clean' | 'Default' | 'Convert' | 'ConvertOID')[] = []
+  containsObjectId: boolean = false,
+  skipOperations: ('Clean' | 'Default' | 'Convert')[] = []
 ): [string | null, T] => {
   // If schema isn't pre-compiled, compile it on the fly but warn about it
   if (!schema._compiled) {
     console.warn('Schema not pre-compiled. Use createSchema for better performance.');
-    return validate(value, createCompiledSchema(schema), skipOperations);
+    return validate(value, createCompiledSchema(schema), containsObjectId, skipOperations);
   }
 
   const _operations: Set<TParseOperation> = new Set(['Clone', 'Clean', 'Default', 'Convert']);
@@ -272,9 +317,14 @@ const validate = <T>(
   const operations = Array.from(setDifference(_operations, _skipOperations));
   // console.log({ _operations, _skipOperations, operations });
 
+  let oidPaths: string[];
+  let VP: Static<typeof schema>;
   const opts: any[] = ['Clone', ...Array.from(new Set(operations))];
-  const isConvertObjectIds = !skipOperations.some(t => t === 'ConvertOID');
-  const VP = Value.Parse(opts, schema, value) as Static<typeof schema>;
+  if (containsObjectId) {
+    oidPaths = getObjectIdPaths(schema);
+    VP = convertObjectIdToStrings(value, schema, oidPaths); // convert ObjectId to string
+  }
+  VP = Value.Parse(opts, schema, value) as Static<typeof schema>; // clone, clean, default, convert
   const R = schema._compiled.Check(VP);
 
   if (!R) {
@@ -283,9 +333,10 @@ const validate = <T>(
     const errorValue = E?.value ? ` (got ${JSON.stringify(E.value)})` : '';
     return [`${E?.message || 'Invalid value'}${path}${errorValue}`, value as T];
   }
-
-  const VC = isConvertObjectIds ? convertObjectIds(VP as any, schema) : VP;
-  return [null, VC as T];
+  if (containsObjectId) {
+    VP = convertStringsToObjectIds(VP as any, schema, oidPaths!); // convert ObjectId back to string
+  }
+  return [null, VP as T];
 };
 
 /**
@@ -311,7 +362,17 @@ const validateArray = <T>(
 };
 
 type TObjectId = TSchema & { static: ObjectId };
-export { Static, Type, validate, validateArray, createCompiledSchema as createSchema, Utils, TObjectId };
+export {
+  Static,
+  Type,
+  validate,
+  validateArray,
+  createCompiledSchema as createSchema,
+  Utils,
+  TObjectId,
+  convertObjectIdToStrings,
+  convertStringsToObjectIds
+};
 export type {
   TSchema,
   TObject,

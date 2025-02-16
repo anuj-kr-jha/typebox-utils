@@ -1,3 +1,4 @@
+import { ObjectId } from 'mongodb';
 import { Utils, Static, Type, validate, createSchema, TObjectId } from './index';
 
 const UserSchema = createSchema(
@@ -13,10 +14,12 @@ const UserSchema = createSchema(
 type User = Static<typeof UserSchema>;
 
 const user = {
+  // _id: new ObjectId(),
   name: 'John Doe',
   age: 30
   // createdAt: new Date()
 };
 
-const res = validate<User>(user, UserSchema);
+const [error, res] = validate<User>(user, UserSchema, true, ['Default']);
 console.log(res);
+console.log(error);

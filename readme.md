@@ -40,7 +40,7 @@ const userSchema = createSchema(
 const [error, validated] = validate({
   email: 'test@example.com',
   contacts: ['507f1f77bcf86cd799439011']
-}, userSchema);
+}, userSchema, true);
 
 if (error) throw new Error(error);
 console.log(validated);
