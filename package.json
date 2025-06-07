@@ -22,7 +22,7 @@
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json"
   },
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "TypeBox utilities with MongoDB ObjectId support and common validation types",
   "author": "Anuj Kumar Jha",
   "license": "MIT",
