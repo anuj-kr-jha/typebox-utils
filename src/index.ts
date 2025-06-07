@@ -146,10 +146,13 @@ const Utils = {
 
 function Encode<Type extends TSchema, Result = StaticEncode<Type>>(
   value: unknown,
-  type: Type
+  type: Type,
+  applyDefault = true
 ): [error: string | null, result: Result] {
   try {
-    const pipelines = ['Encode', 'Assert', 'Convert', 'Default', 'Clean'];
+    const pipelines = applyDefault
+      ? ['Encode', 'Assert', 'Convert', 'Default', 'Clean']
+      : ['Encode', 'Assert', 'Convert', 'Clean'];
     const result = Value.Parse(pipelines, type, value) as never;
     return [null, result as Result] as const;
   } catch (e: any) {
@@ -165,10 +168,13 @@ function Encode<Type extends TSchema, Result = StaticEncode<Type>>(
 
 function Decode<Type extends TSchema, Result = StaticDecode<Type>>(
   value: unknown,
-  type: Type
+  type: Type,
+  applyDefault = true
 ): [error: string | null, result: Result] {
   try {
-    const pipelines = ['Clean', 'Default', 'Convert', 'Assert', 'Decode'];
+    const pipelines = applyDefault
+      ? ['Clean', 'Default', 'Convert', 'Assert', 'Decode']
+      : ['Clean', 'Convert', 'Assert', 'Decode'];
     const result = Value.Parse(pipelines, type, value) as never;
     return [null, result as Result] as const;
   } catch (e: any) {

@@ -8,7 +8,7 @@ const UserSchema = Type.Object({
   union: Type.Union([Utils.ObjectId(), Type.Number(), Type.Null()], {
     errorMessage: 'Expected either a 24-character hex string or an ObjectID or number or null'
   }),
-  email: Utils.Email({ default: 'user@example.com' }),
+  email: Type.Optional(Utils.Email({ default: 'user@example.com' })),
   createdAt: Type.Optional(Type.Date({ default: () => new Date() }))
   // updatedAt: Type.Optional(Type.Date({ default: () => new Date() }))
 });
@@ -24,6 +24,6 @@ const user = {
   // createdAt: new Date()
 };
 
-const [error, res] = Decode(user, UserSchema);
+const [error, res] = Decode(user, UserSchema, false);
 console.error('Validation error:', error);
 console.log('Validation successful:', res);
