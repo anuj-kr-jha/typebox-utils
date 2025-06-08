@@ -97,7 +97,7 @@ const Utils = {
    * @param {string} [config.default] - Optional default value for the ObjectId type
    * @returns {import('@sinclair/typebox').TString & { static: ObjectId }} A TypeBox schema for MongoDB ObjectId
    */
-  ObjectId: (config?: { default?: string }) => {
+  ObjectId: (config?: { default?: string }): TObjectId => {
     const raw = Type.Union(
       [
         Type.RegExp(/^[0-9a-fA-F]{24}$/),
@@ -115,7 +115,7 @@ const Utils = {
       .Encode(value => (value instanceof ObjectId ? value.toString() : String(value)));
 
     if (config?.default) transformed.default = config.default;
-    return transformed;
+    return transformed as unknown as TObjectId;
   }
 } as const;
 

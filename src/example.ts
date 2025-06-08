@@ -2,7 +2,7 @@ import { ObjectId } from 'mongodb';
 import { Utils, Static, Type, Decode, TObjectId } from './index';
 
 const UserSchema = Type.Object({
-  _id: Utils.ObjectId({ default: '000000000000000000000000' }) as unknown as TObjectId,
+  _id: Type.Optional(Utils.ObjectId({ default: '000000000000000000000000' })),
   name: Type.String(),
   age: Type.Number(),
   union: Type.Union([Utils.ObjectId(), Type.Number(), Type.Null()], {
