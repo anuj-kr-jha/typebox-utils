@@ -147,12 +147,12 @@ const Utils = {
 function Encode<Type extends TSchema, Result = StaticEncode<Type>>(
   value: unknown,
   type: Type,
-  applyDefault = true
+  applyDefault = true,
+  removeExcessProperties = false
 ): [error: string | null, result: Result] {
   try {
-    const pipelines = applyDefault
-      ? ['Encode', 'Assert', 'Convert', 'Default', 'Clean']
-      : ['Encode', 'Assert', 'Convert', 'Clean'];
+    const pipelines = applyDefault ? ['Encode', 'Assert', 'Convert', 'Default'] : ['Encode', 'Assert', 'Convert'];
+    if (removeExcessProperties) pipelines.push('Clean');
     const result = Value.Parse(pipelines, type, value) as never;
     return [null, result as Result] as const;
   } catch (e: any) {
@@ -169,12 +169,12 @@ function Encode<Type extends TSchema, Result = StaticEncode<Type>>(
 function Decode<Type extends TSchema, Result = StaticDecode<Type>>(
   value: unknown,
   type: Type,
-  applyDefault = true
+  applyDefault = true,
+  removeExcessProperties = false
 ): [error: string | null, result: Result] {
   try {
-    const pipelines = applyDefault
-      ? ['Clean', 'Default', 'Convert', 'Assert', 'Decode']
-      : ['Clean', 'Convert', 'Assert', 'Decode'];
+    const pipelines = applyDefault ? ['Default', 'Convert', 'Assert', 'Decode'] : ['Convert', 'Assert', 'Decode'];
+    if (removeExcessProperties) pipelines.unshift('Clean');
     const result = Value.Parse(pipelines, type, value) as never;
     return [null, result as Result] as const;
   } catch (e: any) {
